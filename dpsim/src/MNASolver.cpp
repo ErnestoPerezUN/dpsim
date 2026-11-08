@@ -275,9 +275,11 @@ template <typename VarType> void MnaSolver<VarType>::initializeSystem() {
                      "-- Initialize MNA system matrices and source vector");
   mRightSideVector.setZero();
 
-  // just a sanity check in case we change the static
-  // initialization of the switch number in the future
-  if (mSwitches.size() > sizeof(std::size_t) * 8) {
+  // The switch-state bitset (SWITCH_NUM bits) indexes the precomputed
+  // per-combination system matrices. With system-matrix recomputation there is
+  // a single matrix and no enumeration of switch states, so the limit does not
+  // apply there.
+  if (!mSystemMatrixRecomputationEnabled && mSwitches.size() > SWITCH_NUM) {
     throw SystemError("Too many Switches.");
   }
 
@@ -414,6 +416,11 @@ Bool MnaSolver<VarType>::hasVariableComponentChanged() {
 }
 
 template <typename VarType> void MnaSolver<VarType>::updateSwitchStatus() {
+  // Only the precomputed path selects a system matrix by switch state; with
+  // recomputation the bitset is not read, and it cannot hold more than
+  // SWITCH_NUM switches.
+  if (mSystemMatrixRecomputationEnabled)
+    return;
   for (UInt i = 0; i < mSwitches.size(); ++i) {
     mCurrentSwitchStatus.set(i, mSwitches[i]->mnaIsClosed());
   }
